@@ -5,6 +5,28 @@ import tkinter as tk
 from tkinter import filedialog
 
 
+# FUNCTIONS USED IN THE LESER2 PROGRAM - START #
+
+def choosefile() -> str:
+    while True:
+        root.attributes('-topmost', True) #zwingt das tkinter-Auswahlfenster in den Vordergrund
+        filename = filedialog.askopenfilename()
+        if filename == "": #catches the instance where the user closes the explorer without choosing a file
+            answer = input("If you still want to choose a file, press the ENTER key. I you want to quit, type 'quit' to end the program.")
+            if answer.strip().lower() == "quit":
+                print("You wanted to quit, have a nice day!")
+                exit()
+            else:
+                continue
+        elif not filename.endswith(".pdf"):
+            print("The file needs to be a pdf document")
+            continue
+        else:
+            text = openfile(filename)
+            if not text:
+                print("The file you chose could not be opened, please choose another file.\n")
+                continue
+        return text
 
 def openfile(filename):
         try:
@@ -22,7 +44,7 @@ def openfile(filename):
             return False
 
 def splitfile(string):
-    chunks = re.split(r"\s*\n\s*\n\s*", string)
+    chunks = re.split(r"\x0c|\s*\n\s*\n\s*", string)
     return chunks
 
 def cleanmerge(chunks):
@@ -30,7 +52,7 @@ def cleanmerge(chunks):
     merge = []
     while index < len(chunks): # while index in range(len(chunks)) würde funktionieren, muss aber jedesmal neu berechnen
         #need to strip whitespace so chunks are clean and 
-        #chunks with only whitespace characters become empty strings
+        #chunks with only whitespace characters become empty strings with length < 1
         chunk = chunks[index].strip()
         if len(chunk) < 1:
             index += 1
@@ -46,59 +68,94 @@ def cleanmerge(chunks):
             index+=2
     return merge
 
+# searchterm sucht in den mit def cleanmerge() gefundenen chunks nach solchen, die einen Suchbegriff beinhalten
+# der Suchbegriff wird mittel lookup = input("Enter a term to search") vom user angefragt.
+def searchterm(term, clean_chunks):
+    searchresult = []
+    
+    for result in clean_chunks:
+        if term.lower() in result.lower():
+            searchresult.append(result)
+        
+    return searchresult
+
+def showresult(searchresult):
+    firstlines = []
+    for idx, chunk in enumerate(searchresult, start = 1):
+        firstline = chunk.split("\n")[0]
+        headline_no_firstline = f"Headline No. {idx}:\n{firstline}\n"+"-"*10+"\n"
+        print(f"Headline No. {idx}:\n{firstline}\n")
+        print("-"*10, "\n")
+        firstlines.append(headline_no_firstline)
+    return firstlines
+
+def chooseresult(resultlist):
+    maxresult = len(resultlist)
+    while True:
+        interestingresult = input("Please enter the Headline No. you wish to see the whole result from or type quit to exit the program: ")
+        if interestingresult.lower().strip() == "quit":
+            exit()
+        elif interestingresult == "":
+            print(f"Please enter a valid number between 1 and {maxresult} or type quit to exit the program.")
+            continue
+        try:
+            number = int(interestingresult.strip())
+            result = resultlist[number-1]
+        except ValueError as e:
+            print(f"Invalid format, please enter exactly one number between 1 and {maxresult}", e)
+            continue
+        except IndexError as e:
+            print(f"The number you choose must be between 1 and {maxresult}", e)
+            continue
+        except Exception as e:
+            print("Unexpected issue: ", e)
+            exit()
+        return number, result
+
+# FUNCTIONS USED IN THE LESER2 PROGRAM - END #
+
+# START OF THE ACTUAL PROGAM CODE
+
 #tkinter: prompts a file explorer to choose a pdf
 root = tk.Tk()
 root.withdraw()
 
-def choosefile():
-    while True:
-        root.attributes('-topmost', True) #zwingt das tkinter-Auswahlfenster in den Vordergrund
-        filename = filedialog.askopenfilename()
-        if filename == "":
-            answer = input("If you still want to choose a file, press the ENTER key. I you want to quit, type 'quit' to end the program.")
-            if answer.strip().lower() == "quit":
-                print("You wanted to quit, have a nice day!")
-                exit()
-            else:
-                continue
-        elif not filename.endswith(".pdf"):
-            print("The file needs to be a pdf document")
-            continue
-        else:
-            text = openfile(filename)
-            if not text:
-                print("The file you chose could not be opened, please choose another file.\n")
-                continue
-        return text
-
-#prompt the user to choose a file from the explorer
+# prompt the user to choose a file from the explorer
+# stringfile = choosefile() combines opening a file explorer to choose and
+# uses the openfile() function to test if the file can be opened and in the end returns a string with pages joined by \X0c
 stringfile = choosefile()
-    
+print(repr(stringfile[:2000]))
 
-#stringfile = openfile(filename) #uses the above written function
+# now split the page-string into parts with a simple logic (those parts with two newline characters in between are likely paragraphs)
 chunks = splitfile(stringfile)
+print(f"Nach splitfile: {len(chunks)}")
+# remove chunks that contain no valuable information and merge those that likely represent headline and chapter-part
 cleanchunks = cleanmerge(chunks)
+print(len(cleanchunks))
 
-def searchterm(term, clean_chunks):
-    searchresult = []
-    for result in clean_chunks:
-        if term.lower() in result.lower():
-            searchresult.append(result)
 
-    snippetstring = ("\n\n").join(searchresult)
-    return snippetstring
-
-print("""You will now be prompted to enter a tearm
-and the program will return all snippets where the tearm was found.""")
-lookup = input("Enter a term to search: ")
+print("""You will now be prompted to enter a search-term
+and the program will present the result as chapter headlines.""")
+lookup = input("Enter a term to search: \nTerm: ")
 while True:
-    pdfsnippets = searchterm(lookup, cleanchunks)
-    if pdfsnippets == "":
-        print("The term you entered was not found.")
-        lookup = input("Enter a term to search or enter 'quit' to exit the program: \nTerm: ")
+    searchresult = searchterm(lookup, cleanchunks)
+    if searchresult == []:
+        print("The term you searched was not found.")
+        lookup = input("Enter a term to search or type quit if you want to exit the program: \nTerm: ")
         if lookup.lower().strip() == "quit":
+            print("You wanted to end the program. Have a nice day!")
             exit()
     else:
         break
-            
-print(pdfsnippets)
+
+
+
+print("These are the chapter headlines for your search: \n\n")
+showresult(searchresult)
+
+print("Choose a chapter by selecting a headline.")
+number, finalresult = chooseresult(searchresult)
+print(f"The result you chose is result No. {number}. \n")
+print(finalresult)
+
+# END OF PROGRAM CODE
