@@ -112,6 +112,22 @@ def chooseresult(resultlist):
             exit()
         return number, result
 
+def yesnoanswer() -> bool:
+    while True:
+        answer = input("Please type yes or no.")
+        answered = answer.lower().strip()
+        if answered == "":
+            print("Please enter yes or no.")
+            continue
+        elif answered not in ["yes", "no", "y", "n"]:
+            print("Please enter yes or no.")
+            continue
+        elif answered == "yes" or answered =="y":
+            return True
+        elif answered == "no" or answered == "n":
+            return False
+
+
 # FUNCTIONS USED IN THE LESER2 PROGRAM - END #
 
 # START OF THE ACTUAL PROGAM CODE
@@ -124,14 +140,11 @@ root.withdraw()
 # stringfile = choosefile() combines opening a file explorer to choose and
 # uses the openfile() function to test if the file can be opened and in the end returns a string with pages joined by \X0c
 stringfile = choosefile()
-print(repr(stringfile[:2000]))
 
 # now split the page-string into parts with a simple logic (those parts with two newline characters in between are likely paragraphs)
 chunks = splitfile(stringfile)
-print(f"Nach splitfile: {len(chunks)}")
 # remove chunks that contain no valuable information and merge those that likely represent headline and chapter-part
 cleanchunks = cleanmerge(chunks)
-print(len(cleanchunks))
 
 
 print("""You will now be prompted to enter a search-term
@@ -148,14 +161,34 @@ while True:
     else:
         break
 
-
-
 print("These are the chapter headlines for your search: \n\n")
-showresult(searchresult)
+resultlist = showresult(searchresult)
 
-print("Choose a chapter by selecting a headline.")
-number, finalresult = chooseresult(searchresult)
-print(f"The result you chose is result No. {number}. \n")
-print(finalresult)
 
+# Wiederholte Möglichkeit, die Ergebnisse anzusehen und auszuwählen.
+# yesnoanswer returns True if the user answered yes or returns False if the user answered no.
+watched = []
+while True:
+    number, finalresult = chooseresult(searchresult)
+    if number in watched: 
+        print("You already saw this result, do you want to display it again ?")
+        if yesnoanswer():
+            print(f"The result you chose is result No. {number}. \n")
+            print(finalresult, "\n\n")
+    else:
+        print(f"The result you chose is result No. {number}. \n")
+        print(finalresult, "\n\n")
+        watched.append(number)
+    print("Do you want to see another result? ")
+    if yesnoanswer():
+        print("Do you want to see the result-list again?")
+        if yesnoanswer():
+            print(*resultlist)
+            continue
+        else:
+            continue
+    else:
+        print("The program will be closed then. Have a nice day.")
+        break
+ 
 # END OF PROGRAM CODE
