@@ -3,30 +3,41 @@ import sys
 import pymupdf
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import messagebox as mb
 
 
 # FUNCTIONS USED IN THE LESER2 PROGRAM - START #
 
-def choosefile() -> str:
+def choosefile() -> list:
+    selectedfiles = []
     while True:
         root.attributes('-topmost', True) #zwingt das tkinter-Auswahlfenster in den Vordergrund
         filename = filedialog.askopenfilename()
-        if filename == "": #catches the instance where the user closes the explorer without choosing a file
-            answer = input("If you still want to choose a file, press the ENTER key. I you want to quit, type 'quit' to end the program.")
-            if answer.strip().lower() == "quit":
-                print("You wanted to quit, have a nice day!")
-                exit()
+        if filename not in [tup[0] for tup in selectedfiles]:
+            if filename == "": #catches the instance where the user closes the explorer without choosing a file
+                answer = input("If you still want to choose a file, press the ENTER key. I you want to quit, type 'quit' to end the program.")
+                if answer.strip().lower() == "quit":
+                    print("You wanted to quit, have a nice day!")
+                    exit()
+                else:
+                    continue
+            elif not filename.endswith(".pdf"):
+                print("The file needs to be a pdf document")
+                continue
+            else:
+                text = openfile(filename)
+                if not text:
+                    print("The file you chose could not be opened, please choose another file.\n")
+                    continue
+                selectedfiles.append((filename, text))
+                if not mb.askyesno("Continue?", "Do you want to select more files from another folder?"):
+                    break
+        else:
+            if not mb.askyesno("Double input!", "You already chose this file. Do you want to choose another file?"):
+                break
             else:
                 continue
-        elif not filename.endswith(".pdf"):
-            print("The file needs to be a pdf document")
-            continue
-        else:
-            text = openfile(filename)
-            if not text:
-                print("The file you chose could not be opened, please choose another file.\n")
-                continue
-        return text
+    return selectedfiles
 
 def openfile(filename):
         try:
@@ -70,11 +81,12 @@ def cleanmerge(chunks):
 
 # searchterm sucht in den mit def cleanmerge() gefundenen chunks nach solchen, die einen Suchbegriff beinhalten
 # der Suchbegriff wird mittel lookup = input("Enter a term to search") vom user angefragt.
-def searchterm(term, clean_chunks):
+def searchterm(term, filename_chunks):
     searchresult = []
     
-    for result in clean_chunks:
-        if term.lower() in result.lower():
+    for result in filename_chunks:
+        textstring = result[1]
+        if term.lower() in textstring.lower():
             searchresult.append(result)
         
     return searchresult
@@ -82,11 +94,11 @@ def searchterm(term, clean_chunks):
 def showresult(searchresult):
     firstlines = []
     for idx, chunk in enumerate(searchresult, start = 1):
-        firstline = chunk.split("\n")[0]
-        headline_no_firstline = f"Headline No. {idx}:\n{firstline}\n"+"-"*10+"\n"
-        print(f"Headline No. {idx}:\n{firstline}\n")
+        firstline = chunk[1].split("\n")[0]
+        source_headline_no_firstline = f"Headline No. {idx}:\n{firstline}\n"+"-"*10+"\n"
+        print(f"Source: {chunk[0]}\nHeadline No. {idx}:\n{firstline}\n")
         print("-"*10, "\n")
-        firstlines.append(headline_no_firstline)
+        firstlines.append((chunk[0], source_headline_no_firstline))
     return firstlines
 
 def chooseresult(resultlist):
@@ -137,21 +149,27 @@ root = tk.Tk()
 root.withdraw()
 
 # prompt the user to choose a file from the explorer
-# stringfile = choosefile() combines opening a file explorer to choose and
-# uses the openfile() function to test if the file can be opened and in the end returns a string with pages joined by \X0c
-stringfile = choosefile()
+# stringfile = choosefile() combines opening a file explorer to choose one or more files and
+# uses the openfile() function to test if the files can be opened and in the end returns
+# a list with tuples in the form (filename, text) where text is a string with file pages joined by \X0c
+stringfiles = choosefile()
 
-# now split the page-string into parts with a simple logic (those parts with two newline characters in between are likely paragraphs)
-chunks = splitfile(stringfile)
+# now split the page-string of each tuple in stringfiles into parts with a simple logic (those parts with two newline characters in between are likely paragraphs)
+filechunklist = []
+for file in stringfiles:
+    filename = file[0]
+    textstring = file[1]
+    chunks = splitfile(textstring)
 # remove chunks that contain no valuable information and merge those that likely represent headline and chapter-part
-cleanchunks = cleanmerge(chunks)
+    cleanchunks = cleanmerge(chunks)
+    filechunklist.extend([(filename, chunk) for chunk in cleanchunks])
 
 
 print("""You will now be prompted to enter a search-term
 and the program will present the result as chapter headlines.""")
 lookup = input("Enter a term to search: \nTerm: ")
 while True:
-    searchresult = searchterm(lookup, cleanchunks)
+    searchresult = searchterm(lookup, filechunklist)
     if searchresult == []:
         print("The term you searched was not found.")
         lookup = input("Enter a term to search or type quit if you want to exit the program: \nTerm: ")
@@ -174,16 +192,18 @@ while True:
         print("You already saw this result, do you want to display it again ?")
         if yesnoanswer():
             print(f"The result you chose is result No. {number}. \n")
-            print(finalresult, "\n\n")
+            print(f"The source is: {finalresult[0]}")
+            print(finalresult[1], "\n\n")
     else:
         print(f"The result you chose is result No. {number}. \n")
-        print(finalresult, "\n\n")
+        print(f"The source is: {finalresult[0]}")
+        print(finalresult[1], "\n\n")
         watched.append(number)
     print("Do you want to see another result? ")
     if yesnoanswer():
         print("Do you want to see the result-list again?")
         if yesnoanswer():
-            print(*resultlist)
+            showresult(searchresult)
             continue
         else:
             continue
