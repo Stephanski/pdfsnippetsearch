@@ -1,6 +1,7 @@
 import re
 import sys
 import pymupdf
+import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox as mb
@@ -91,15 +92,15 @@ def searchterm(term, filename_chunks):
         
     return searchresult
 
-def showresult(searchresult):
-    firstlines = []
-    for idx, chunk in enumerate(searchresult, start = 1):
-        firstline = chunk[1].split("\n")[0]
-        source_headline_no_firstline = f"Headline No. {idx}:\n{firstline}\n"+"-"*10+"\n"
-        print(f"Source: {chunk[0]}\nHeadline No. {idx}:\n{firstline}\n")
-        print("-"*10, "\n")
-        firstlines.append((chunk[0], source_headline_no_firstline))
-    return firstlines
+# def showresult(searchresult):
+#     firstlines = []
+#     for idx, chunk in enumerate(searchresult, start = 1):
+#         firstline = chunk[1].split("\n")[0]
+#         source_headline_no_firstline = f"Headline No. {idx}:\n{firstline}\n"+"-"*10+"\n"
+#         print(f"Source: {chunk[0]}\nHeadline No. {idx}:\n{firstline}\n")
+#         print("-"*10, "\n")
+#         firstlines.append((chunk[0], source_headline_no_firstline))
+#     return firstlines
 
 def chooseresult(resultlist):
     maxresult = len(resultlist)
@@ -123,6 +124,13 @@ def chooseresult(resultlist):
             print("Unexpected issue: ", e)
             exit()
         return number, result
+
+
+def searchresult_to_dataframe(searchresult):
+    columnlist = ["Source", "Title", "Result"]
+    dataframe_tuple_list = [(result[0].split("/")[-1], result[1].split("\n")[0], result[1]) for result in searchresult]
+    df = pd.DataFrame(dataframe_tuple_list, columns = columnlist)
+    return df 
 
 def yesnoanswer() -> bool:
     while True:
@@ -180,7 +188,9 @@ while True:
         break
 
 print("These are the chapter headlines for your search: \n\n")
-resultlist = showresult(searchresult)
+result_dataframe = searchresult_to_dataframe(searchresult)
+
+print(result_dataframe)
 
 
 # Wiederholte Möglichkeit, die Ergebnisse anzusehen und auszuwählen.
@@ -203,7 +213,7 @@ while True:
     if yesnoanswer():
         print("Do you want to see the result-list again?")
         if yesnoanswer():
-            showresult(searchresult)
+            print (result_dataframe)
             continue
         else:
             continue
