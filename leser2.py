@@ -125,7 +125,9 @@ def chooseresult(resultlist):
             exit()
         return number, result
 
-
+# takes the result from searchresult (filename, text) and converts it into a 
+# tuple-list [(source, first_line, content), ...], then builds a pd.DataFrame with it and returns it
+# as df
 def searchresult_to_dataframe(searchresult):
     columnlist = ["Source", "Title", "Result"]
     dataframe_tuple_list = [(result[0].split("/")[-1], result[1].split("\n")[0], result[1]) for result in searchresult]
