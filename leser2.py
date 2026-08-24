@@ -3,7 +3,7 @@ import sys
 import pymupdf
 import pandas as pd
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, scrolledtext
 from tkinter import messagebox as mb
 
 
@@ -156,7 +156,8 @@ def yesnoanswer() -> bool:
 
 #tkinter: prompts a file explorer to choose a pdf
 root = tk.Tk()
-root.withdraw()
+root.title("Your result")
+root.geometry("500x400")
 
 # prompt the user to choose a file from the explorer
 # stringfile = choosefile() combines opening a file explorer to choose one or more files and
@@ -190,10 +191,17 @@ while True:
         break
 
 print("These are the chapter headlines for your search: \n\n")
-result_dataframe = searchresult_to_dataframe(searchresult)
+sorted_searchresult = sorted(searchresult, key = lambda chunk: (chunk[0], -len(chunk[1])) )
+result_dataframe = searchresult_to_dataframe(sorted_searchresult)
 
 print(result_dataframe)
+print(type(result_dataframe))
 
+root.attributes("-topmost", False)
+viewbox = scrolledtext.ScrolledText(root, background="darkgrey", foreground= "white",
+                                    width= 50, height= 30)
+viewbox.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+viewbox.insert(tk.INSERT, result_dataframe.to_string(columns=["Source", "Title"]))
 
 # Wiederholte Möglichkeit, die Ergebnisse anzusehen und auszuwählen.
 # yesnoanswer returns True if the user answered yes or returns False if the user answered no.
