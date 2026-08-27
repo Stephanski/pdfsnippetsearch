@@ -96,7 +96,7 @@ def searchterm(term, filename_chunks):
 
 def searchbox():
     while True:
-        term = simpledialog.askstring("Search-term", "Please enter a term to search or type quit to exit the program.")
+        term = simpledialog.askstring("Search-term", "Please enter a term to search or type quit to exit the program.", parent=root)
         if term == None:
             mb.showinfo("No valid input", "Your search-term must be a text input. Please try again.")
             continue
@@ -130,7 +130,7 @@ def searchbox():
 def chooseresult(result_dataframe):
     maxresult = len(result_dataframe)
     while True:
-        interestingresult = simpledialog.askstring("Choose a result", "Please enter the Result No. you wish to see the whole result from or type quit to exit the program: ")
+        interestingresult = simpledialog.askstring("Choose a result", "Please enter the Result No. you wish to see the whole result from or type quit to exit the program: ", parent=root)
         if interestingresult == None:
                     mb.showinfo("Invalid number", f"Please enter a valid number between 0 and {maxresult-1} or type quit to exit the program.")
                     continue
@@ -189,7 +189,7 @@ def searchresult_to_dataframe(searchresult):
 #tkinter: prompts a file explorer to choose a pdf
 root = tk.Tk()
 root.title("Your result")
-root.geometry("500x400")
+root.geometry("500x400+50+50")
 
 # prompt the user to choose a file from the explorer
 # stringfile = choosefile() combines opening a file explorer to choose one or more files and
@@ -238,7 +238,7 @@ watched = []
 while True:
     number, title, source, content = chooseresult(result_dataframe)
     if number in watched: 
-        if not mb.askyesno("AGAIN", "You already saw this result, do you want to display it again ?"):
+        if not mb.askyesno("AGAIN", "You already saw this result, do you want to display it again ?", parent=root):
             continue
             
     
