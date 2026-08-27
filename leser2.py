@@ -3,7 +3,7 @@ import sys
 import pymupdf
 import pandas as pd
 import tkinter as tk
-from tkinter import filedialog, scrolledtext
+from tkinter import filedialog, scrolledtext, simpledialog
 from tkinter import messagebox as mb
 
 
@@ -16,19 +16,18 @@ def choosefile() -> list:
         filename = filedialog.askopenfilename()
         if filename not in [tup[0] for tup in selectedfiles]:
             if filename == "": #catches the instance where the user closes the explorer without choosing a file
-                answer = input("If you still want to choose a file, press the ENTER key. I you want to quit, type 'quit' to end the program.")
-                if answer.strip().lower() == "quit":
-                    print("You wanted to quit, have a nice day!")
+                if not mb.askyesno("DID YOU WANT TO DO THAT ?", "If you still want to choose a file, press YES. I you want to quit, press NO."):
+                    mb.showinfo("See you again!", "You wanted to end the program.\n Have a nice day!")
                     exit()
                 else:
                     continue
             elif not filename.endswith(".pdf"):
-                print("The file needs to be a pdf document")
+                mb.showwarning("UNSUPPORTED FORMAT", "The file needs to be a pdf document")
                 continue
             else:
                 text = openfile(filename)
                 if not text:
-                    print("The file you chose could not be opened, please choose another file.\n")
+                    mb.showinfo("", "The file you chose could not be opened, please choose another file.\n")
                     continue
                 selectedfiles.append((filename, text))
                 if not mb.askyesno("Continue?", "Do you want to select more files from another folder?"):
@@ -92,6 +91,32 @@ def searchterm(term, filename_chunks):
         
     return searchresult
 
+# searchbox soll den user mittels simpledialog.askstring() nach einem Suchwort fragen
+# dabei validieren, ob der user einfach rausklicken möchte oder gar kein gültiges Suchwort eingibt
+
+def searchbox():
+    while True:
+        term = simpledialog.askstring("Search-term", "Please enter a term to search or type quit to exit the program.")
+        if term == None:
+            mb.showinfo("No valid input", "Your search-term must be a text input. Please try again.")
+            continue
+
+        try:
+            stringterm = term.lower().strip()
+        except ValueError:
+            mb.showinfo("Invalid input", "Your input must be a text input.\n Please try again!")
+            continue
+        except Exception as e:
+            mb.showinfo("Oups, unexpected error", f"This happened: {e}")
+            continue
+
+        if stringterm == "quit":
+            mb.showinfo("Exit", "You wanted to close the program.\n Have a nice day!")
+            exit()
+
+        return stringterm
+        
+
 # def showresult(searchresult):
 #     firstlines = []
 #     for idx, chunk in enumerate(searchresult, start = 1):
@@ -102,28 +127,32 @@ def searchterm(term, filename_chunks):
 #         firstlines.append((chunk[0], source_headline_no_firstline))
 #     return firstlines
 
-def chooseresult(resultlist):
-    maxresult = len(resultlist)
+def chooseresult(result_dataframe):
+    maxresult = len(result_dataframe)
     while True:
-        interestingresult = input("Please enter the Headline No. you wish to see the whole result from or type quit to exit the program: ")
-        if interestingresult.lower().strip() == "quit":
+        interestingresult = simpledialog.askstring("Choose a result", "Please enter the Result No. you wish to see the whole result from or type quit to exit the program: ")
+        if interestingresult == None:
+                    mb.showinfo("Invalid number", f"Please enter a valid number between 0 and {maxresult-1} or type quit to exit the program.")
+                    continue
+
+        elif interestingresult.lower().strip() == "quit":
             exit()
-        elif interestingresult == "":
-            print(f"Please enter a valid number between 1 and {maxresult} or type quit to exit the program.")
-            continue
+        
         try:
             number = int(interestingresult.strip())
-            result = resultlist[number-1]
+            title = result_dataframe.iloc[number-1]["Title"]
+            source = result_dataframe.iloc[number-1]["Source"]
+            result = result_dataframe.iloc[number-1]["Result"]
         except ValueError as e:
-            print(f"Invalid format, please enter exactly one number between 1 and {maxresult}", e)
+            mb.showinfo("Wrong Value Type", f"Invalid format, please enter exactly one number between 0 and {maxresult-1}")
             continue
-        except IndexError as e:
-            print(f"The number you choose must be between 1 and {maxresult}", e)
+        except IndexError:
+            mb.showinfo("Index Error", f"The number you choose must be between 0 and {maxresult-1}")
             continue
         except Exception as e:
-            print("Unexpected issue: ", e)
+            mb.showwarning("Oups!", "Unexpected issue: ")
             exit()
-        return number, result
+        return number, title, source, result
 
 # takes the result from searchresult (filename, text) and converts it into a 
 # tuple-list [(source, first_line, content), ...], then builds a pd.DataFrame with it and returns it
@@ -134,20 +163,23 @@ def searchresult_to_dataframe(searchresult):
     df = pd.DataFrame(dataframe_tuple_list, columns = columnlist)
     return df 
 
-def yesnoanswer() -> bool:
-    while True:
-        answer = input("Please type yes or no.")
-        answered = answer.lower().strip()
-        if answered == "":
-            print("Please enter yes or no.")
-            continue
-        elif answered not in ["yes", "no", "y", "n"]:
-            print("Please enter yes or no.")
-            continue
-        elif answered == "yes" or answered =="y":
-            return True
-        elif answered == "no" or answered == "n":
-            return False
+# a terminal function to aks the user for yes or no
+# since the introduction of tkinter not in use
+
+# def yesnoanswer() -> bool:
+#     while True:
+#         answer = input("Please type yes or no.")
+#         answered = answer.lower().strip()
+#         if answered == "":
+#             print("Please enter yes or no.")
+#             continue
+#         elif answered not in ["yes", "no", "y", "n"]:
+#             print("Please enter yes or no.")
+#             continue
+#         elif answered == "yes" or answered =="y":
+#             return True
+#         elif answered == "no" or answered == "n":
+#             return False
 
 
 # FUNCTIONS USED IN THE LESER2 PROGRAM - END #
@@ -176,17 +208,15 @@ for file in stringfiles:
     filechunklist.extend([(filename, chunk) for chunk in cleanchunks])
 
 
-print("""You will now be prompted to enter a search-term
-and the program will present the result as chapter headlines.""")
-lookup = input("Enter a term to search: \nTerm: ")
+mb.showinfo("Search", "You will now be prompted to enter a search-term and the program will present the result as chapter headlines.")
+
 while True:
+    lookup = searchbox()
+
     searchresult = searchterm(lookup, filechunklist)
     if searchresult == []:
-        print("The term you searched was not found.")
-        lookup = input("Enter a term to search or type quit if you want to exit the program: \nTerm: ")
-        if lookup.lower().strip() == "quit":
-            print("You wanted to end the program. Have a nice day!")
-            exit()
+        mb.showinfo("NO RESULT", "The term you searched was not found. Please try again!")
+        continue
     else:
         break
 
@@ -194,8 +224,7 @@ print("These are the chapter headlines for your search: \n\n")
 sorted_searchresult = sorted(searchresult, key = lambda chunk: (chunk[0], -len(chunk[1])) )
 result_dataframe = searchresult_to_dataframe(sorted_searchresult)
 
-print(result_dataframe)
-print(type(result_dataframe))
+# print(result_dataframe) prints the search result to the Terminal. May be used for debugging 
 
 root.attributes("-topmost", False)
 viewbox = scrolledtext.ScrolledText(root, background="darkgrey", foreground= "white",
@@ -203,32 +232,30 @@ viewbox = scrolledtext.ScrolledText(root, background="darkgrey", foreground= "wh
 viewbox.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 viewbox.insert(tk.INSERT, result_dataframe.to_string(columns=["Source", "Title"]))
 
-# Wiederholte Möglichkeit, die Ergebnisse anzusehen und auszuwählen.
+# Wiederholte Möglichkeit, die Ergebnisse anzusehen und auszuwählen. Anzeige im Tcl/Tk window
 # yesnoanswer returns True if the user answered yes or returns False if the user answered no.
 watched = []
 while True:
-    number, finalresult = chooseresult(searchresult)
+    number, title, source, content = chooseresult(result_dataframe)
     if number in watched: 
-        print("You already saw this result, do you want to display it again ?")
-        if yesnoanswer():
-            print(f"The result you chose is result No. {number}. \n")
-            print(f"The source is: {finalresult[0]}")
-            print(finalresult[1], "\n\n")
-    else:
-        print(f"The result you chose is result No. {number}. \n")
-        print(f"The source is: {finalresult[0]}")
-        print(finalresult[1], "\n\n")
+        if not mb.askyesno("AGAIN", "You already saw this result, do you want to display it again ?"):
+            continue
+            
+    
+    viewbox.delete("1.0", tk.END)
+    viewbox.insert(tk.INSERT, f"Result No.: {number}\nSource: {source}\n\n{content}")
+    if number not in watched:
         watched.append(number)
-    print("Do you want to see another result? ")
-    if yesnoanswer():
-        print("Do you want to see the result-list again?")
-        if yesnoanswer():
-            print (result_dataframe)
+    
+    if mb.askyesno("RESULTS", "Do you want to see another result?"):
+        if mb.askyesno("", "Do you want to see the result-list again?"):
+            viewbox.delete("1.0", tk.END)
+            viewbox.insert(tk.INSERT, result_dataframe.to_string(columns=["Source", "Title"]))
             continue
         else:
             continue
     else:
-        print("The program will be closed then. Have a nice day.")
+        mb.showinfo("CLOSE PROGRAM", "The program will be closed then. Have a nice day.")
         break
  
 # END OF PROGRAM CODE
