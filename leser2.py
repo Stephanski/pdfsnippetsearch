@@ -154,6 +154,23 @@ def chooseresult(result_dataframe):
             exit()
         return number, title, source, result
 
+# a function that takes choosefile(), split() and cleanmerge() together
+# so it can be used to ask the user if he wants to choose new pdf files for a search within the while True loop
+def pdf_choose_split_cleanmerge():
+    stringfiles = choosefile()
+
+# now split the page-string of each tuple in stringfiles into parts with a simple logic (those parts with two newline characters in between are likely paragraphs)
+    filechunklist = []
+    for file in stringfiles:
+        filename = file[0]
+        textstring = file[1]
+        chunks = splitfile(textstring)
+# remove chunks that contain no valuable information and merge those that likely represent headline and chapter-part
+        cleanchunks = cleanmerge(chunks)
+        filechunklist.extend([(filename, chunk) for chunk in cleanchunks])
+    return filechunklist
+
+
 # takes the result from searchresult (filename, text) and converts it into a 
 # tuple-list [(source, first_line, content), ...], then builds a pd.DataFrame with it and returns it
 # as df
@@ -195,67 +212,82 @@ root.geometry("500x400+50+50")
 # stringfile = choosefile() combines opening a file explorer to choose one or more files and
 # uses the openfile() function to test if the files can be opened and in the end returns
 # a list with tuples in the form (filename, text) where text is a string with file pages joined by \X0c
-stringfiles = choosefile()
 
-# now split the page-string of each tuple in stringfiles into parts with a simple logic (those parts with two newline characters in between are likely paragraphs)
-filechunklist = []
-for file in stringfiles:
-    filename = file[0]
-    textstring = file[1]
-    chunks = splitfile(textstring)
-# remove chunks that contain no valuable information and merge those that likely represent headline and chapter-part
-    cleanchunks = cleanmerge(chunks)
-    filechunklist.extend([(filename, chunk) for chunk in cleanchunks])
+filechunklist = pdf_choose_split_cleanmerge()
+# stringfiles = choosefile()
 
+# # now split the page-string of each tuple in stringfiles into parts with a simple logic (those parts with two newline characters in between are likely paragraphs)
+# filechunklist = []
+# for file in stringfiles:
+#     filename = file[0]
+#     textstring = file[1]
+#     chunks = splitfile(textstring)
+# # remove chunks that contain no valuable information and merge those that likely represent headline and chapter-part
+#     cleanchunks = cleanmerge(chunks)
+#     filechunklist.extend([(filename, chunk) for chunk in cleanchunks])
 
-mb.showinfo("Search", "You will now be prompted to enter a search-term and the program will present the result as chapter headlines.")
-
-while True:
-    lookup = searchbox()
-
-    searchresult = searchterm(lookup, filechunklist)
-    if searchresult == []:
-        mb.showinfo("NO RESULT", "The term you searched was not found. Please try again!")
-        continue
-    else:
-        break
-
-print("These are the chapter headlines for your search: \n\n")
-sorted_searchresult = sorted(searchresult, key = lambda chunk: (chunk[0], -len(chunk[1])) )
-result_dataframe = searchresult_to_dataframe(sorted_searchresult)
-
-# print(result_dataframe) prints the search result to the Terminal. May be used for debugging 
-
+# building the viewbox for the results outside the loop, so the loop can be startet
+# again with a new search
 root.attributes("-topmost", False)
 viewbox = scrolledtext.ScrolledText(root, background="darkgrey", foreground= "white",
                                     width= 50, height= 30)
 viewbox.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
-viewbox.insert(tk.INSERT, result_dataframe.to_string(columns=["Source", "Title"]))
+# search loop, activates one search and can be repeated if the user wants to try a second search-term
+# the loop ends with the last line of code in the search block, when the user does not want to see another result
+while True:    
+    mb.showinfo("Search", "You will now be prompted to enter a search-term and the program will present the result as chapter headlines.")
+    
+    while True:
+        lookup = searchbox()
+        searchresult = searchterm(lookup, filechunklist)
+        if searchresult == []:
+            mb.showinfo("NO RESULT", "The term you searched was not found. Please try again!")
+            continue
+        else:
+            break
+# this part sorts the list of result chunks according to
+# (1) source
+# (2) length of content chunk from longest to shortest 
+    sorted_searchresult = sorted(searchresult, key = lambda chunk: (chunk[0], -len(chunk[1])) )
+    result_dataframe = searchresult_to_dataframe(sorted_searchresult)
+
+    
+    
+    viewbox.insert(tk.INSERT, result_dataframe.to_string(columns=["Source", "Title"]))
 
 # Wiederholte Möglichkeit, die Ergebnisse anzusehen und auszuwählen. Anzeige im Tcl/Tk window
 # yesnoanswer returns True if the user answered yes or returns False if the user answered no.
-watched = []
-while True:
-    number, title, source, content = chooseresult(result_dataframe)
-    if number in watched: 
-        if not mb.askyesno("AGAIN", "You already saw this result, do you want to display it again ?", parent=root):
-            continue
+    watched = []
+    while True:
+        number, title, source, content = chooseresult(result_dataframe)
+        if number in watched: 
+            if not mb.askyesno("AGAIN", "You already saw this result, do you want to display it again ?", parent=root):
+                continue
             
     
-    viewbox.delete("1.0", tk.END)
-    viewbox.insert(tk.INSERT, f"Result No.: {number}\nSource: {source}\n\n{content}")
-    if number not in watched:
-        watched.append(number)
-    
-    if mb.askyesno("RESULTS", "Do you want to see another result?"):
-        if mb.askyesno("", "Do you want to see the result-list again?"):
-            viewbox.delete("1.0", tk.END)
-            viewbox.insert(tk.INSERT, result_dataframe.to_string(columns=["Source", "Title"]))
-            continue
+        viewbox.delete("1.0", tk.END)
+        viewbox.insert(tk.INSERT, f"Result No.: {number}\nSource: {source}\n\n{content}")
+        if number not in watched:
+            watched.append(number)
+        
+        if mb.askyesno("RESULTS", "Do you want to see another result?"):
+            if mb.askyesno("", "Do you want to see the result-list again?"):
+                viewbox.delete("1.0", tk.END)
+                viewbox.insert(tk.INSERT, result_dataframe.to_string(columns=["Source", "Title"]))
+                continue
+            else:
+                continue
         else:
-            continue
+            break
+
+    if mb.askyesno("New search?", "Do you want to start a new search?"):
+        viewbox.delete("1.0", tk.END)
+        continue #the user answers yes (new search), the outer while loop starts anew 
+    elif mb.askyesno("New PDF ?", "Do you want to load new PDFs ?\nthis will clear the old results"):
+        viewbox.delete("1.0", tk.END)
+        filechunklist = pdf_choose_split_cleanmerge()
+        continue
     else:
-        mb.showinfo("CLOSE PROGRAM", "The program will be closed then. Have a nice day.")
-        break
- 
+        mb.showinfo("", "Have a nice day!")
+        break #the user answers no (no new search), the outer while loop breaks
 # END OF PROGRAM CODE
